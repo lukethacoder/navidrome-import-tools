@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Navidrome Import Tools{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-cog text-secondary me-2"></i>
+            Settings
+        </h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fab fa-spotify text-success me-2"></i>
+                    Spotify Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Spotify credentials are configured via environment variables. 
+                    Check your <code>.env</code> file in the project root.
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Current Configuration:</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Client ID:</strong> <span class="text-muted">{{ spotify_client_id[:8] }}...</span></li>
+                            <li><strong>Redirect URI:</strong> <span class="text-muted">{{ redirect_uri }}</span></li>
+                            <li><strong>Status:</strong> 
+                                {% if authenticated %}
+                                    <span class="badge bg-success">Connected</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Not Connected</span>
+                                {% endif %}
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Required Scopes:</h6>
+                        <ul class="list-unstyled small">
+                            <li><i class="fas fa-check text-success me-1"></i>playlist-read-private</li>
+                            <li><i class="fas fa-check text-success me-1"></i>playlist-read-collaborative</li>
+                            <li><i class="fas fa-check text-success me-1"></i>user-library-read</li>
+                            <li><i class="fas fa-check text-success me-1"></i>playlist-modify-private</li>
+                            <li><i class="fas fa-check text-success me-1"></i>playlist-modify-public</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-server text-success me-2"></i>
+                    Lidarr Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="lidarr-settings">
+                    <div class="mb-3">
+                        <label for="lidarr-url" class="form-label">Lidarr URL</label>
+                        <input type="url" class="form-control" id="lidarr-url" 
+                               placeholder="http://localhost:8686/api/v1" 
+                               value="{{ lidarr_url or '' }}">
+                        <div class="form-text">Full URL to your Lidarr API endpoint</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="lidarr-api-key" class="form-label">API Key</label>
+                        <input type="password" class="form-control" id="lidarr-api-key" 
+                               placeholder="Your Lidarr API key"
+                               value="{{ lidarr_api_key or '' }}">
+                        <div class="form-text">Found in Lidarr Settings > General > Security</div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="root-folder" class="form-label">Root Folder Path</label>
+                                <input type="text" class="form-control" id="root-folder" 
+                                       placeholder="/music/" value="/music/">
+                                <div class="form-text">Root folder for music in Lidarr</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="quality-profile" class="form-label">Quality Profile ID</label>
+                                <input type="number" class="form-control" id="quality-profile" 
+                                       placeholder="1" value="1" min="1">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label for="metadata-profile" class="form-label">Metadata Profile ID</label>
+                                <input type="number" class="form-control" id="metadata-profile" 
+                                       placeholder="1" value="1" min="1">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-success" id="test-lidarr">
+                        <i class="fas fa-plug me-1"></i>Test Connection
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Save Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-database text-info me-2"></i>
+                    Navidrome Configuration
+                </h5>
+            </div>
+            <div class="card-body">
+                <form id="navidrome-settings">
+                    <div class="mb-3">
+                        <label for="navidrome-db-path" class="form-label">Database Path</label>
+                        <input type="text" class="form-control" id="navidrome-db-path" 
+                               placeholder="navidrome.db" value="navidrome.db">
+                        <div class="form-text">Path to your Navidrome SQLite database file</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="music-path-prefix" class="form-label">Music Path Prefix</label>
+                        <input type="text" class="form-control" id="music-path-prefix" 
+                               placeholder="/music/" value="/music/">
+                        <div class="form-text">Prefix to add to file paths in M3U playlists</div>
+                    </div>
+                    
+                    <button type="button" class="btn btn-info" id="test-navidrome">
+                        <i class="fas fa-database me-1"></i>Test Database
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>Save Settings
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Configuration Help
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6><i class="fab fa-spotify text-success me-2"></i>Spotify Setup</h6>
+                <p class="small">
+                    Create a Spotify app at <a href="https://developer.spotify.com/dashboard" target="_blank">developer.spotify.com</a> 
+                    and add your credentials to the <code>.env</code> file.
+                </p>
+                
+                <h6><i class="fas fa-server text-success me-2"></i>Lidarr Setup</h6>
+                <p class="small">
+                    Find your API key in Lidarr under Settings > General > Security. 
+                    The URL should include the full path to the API (usually ending in <code>/api/v1</code>).
+                </p>
+                
+                <h6><i class="fas fa-database text-info me-2"></i>Navidrome Setup</h6>
+                <p class="small">
+                    The database file is usually located in your Navidrome data directory. 
+                    Make sure the web application has read access to this file.
+                </p>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line me-2"></i>
+                    System Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong>Spotify:</strong>
+                    {% if authenticated %}
+                        <span class="badge bg-success">Connected</span>
+                    {% else %}
+                        <span class="badge bg-danger">Disconnected</span>
+                    {% endif %}
+                </div>
+                
+                <div class="mb-2">
+                    <strong>Lidarr:</strong>
+                    <span class="badge bg-secondary" id="lidarr-status">Not Tested</span>
+                </div>
+                
+                <div class="mb-2">
+                    <strong>Navidrome DB:</strong>
+                    <span class="badge bg-secondary" id="navidrome-status">Not Tested</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-code me-2"></i>
+                    Environment File
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="small">
+                    Your <code>.env</code> file should contain:
+                </p>
+                <pre class="small bg-light p-2 rounded"><code>CLIENT_ID="your_spotify_client_id"
+CLIENT_SECRET="your_spotify_client_secret"
+REDIRECT_URI="http://localhost:5000/callback"
+LIDARR_URL="http://localhost:8686/api/v1"
+API_KEY="your_lidarr_api_key"</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test Results Modal -->
+<div class="modal fade" id="testModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" id="test-modal-header">
+                <h5 class="modal-title" id="test-modal-title">Test Results</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="test-modal-message"></p>
+                <div id="test-modal-details" style="display: none;">
+                    <pre class="small bg-light p-2 rounded"><code id="test-modal-code"></code></pre>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+{% endblock %}

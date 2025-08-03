@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Navidrome Import Tools{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i class="fas fa-music text-success me-2"></i>
+            Navidrome Import Tools
+        </h1>
+        
+        {% if not authenticated %}
+        <div class="alert alert-info">
+            <h4><i class="fas fa-info-circle me-2"></i>Welcome!</h4>
+            <p>This tool helps you migrate your Spotify playlists and liked songs to other formats or services.</p>
+            <p class="mb-0">Please <a href="{{ url_for('login') }}" class="alert-link">login with Spotify</a> to get started.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if authenticated %}
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-list text-primary me-2"></i>
+                    Playlists
+                </h5>
+                <p class="card-text">
+                    Export your Spotify playlists to M3U format or send them to Lidarr for automatic music collection management.
+                </p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success me-2"></i>Fetch any public or private playlist</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Generate M3U files for media players</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Send to Lidarr via MusicBrainz lookup</li>
+                </ul>
+                <a href="{{ url_for('playlists') }}" class="btn btn-primary">
+                    <i class="fas fa-arrow-right me-1"></i>Manage Playlists
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-heart text-danger me-2"></i>
+                    Liked Songs
+                </h5>
+                <p class="card-text">
+                    Export your liked songs collection or split it into manageable playlists for easier organization.
+                </p>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-check text-success me-2"></i>Export all liked songs</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Split into smaller playlists</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Multiple export formats</li>
+                </ul>
+                <a href="{{ url_for('liked_songs') }}" class="btn btn-danger">
+                    <i class="fas fa-arrow-right me-1"></i>Manage Liked Songs
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-info-circle text-info me-2"></i>
+                    How It Works
+                </h5>
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-download text-primary me-2"></i>1. Fetch</h6>
+                        <p class="small">Connect to Spotify and download your playlist or liked songs data.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-cogs text-warning me-2"></i>2. Process</h6>
+                        <p class="small">Convert and match tracks using MusicBrainz database for accurate metadata.</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6><i class="fas fa-upload text-success me-2"></i>3. Export</h6>
+                        <p class="small">Generate M3U playlists or send directly to Lidarr for collection management.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="fas fa-tools text-secondary me-2"></i>
+                    Available Tools
+                </h5>
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <i class="fas fa-file-audio fa-2x text-primary mb-2"></i>
+                            <h6>M3U Export</h6>
+                            <p class="small text-muted">Generate playlist files for media players like VLC, Navidrome, etc.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <i class="fas fa-server fa-2x text-success mb-2"></i>
+                            <h6>Lidarr Integration</h6>
+                            <p class="small text-muted">Automatically add albums to your Lidarr instance for downloading.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <i class="fas fa-database fa-2x text-info mb-2"></i>
+                            <h6>MusicBrainz Lookup</h6>
+                            <p class="small text-muted">Match tracks with accurate metadata from the MusicBrainz database.</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <div class="text-center">
+                            <i class="fas fa-cut fa-2x text-warning mb-2"></i>
+                            <h6>Playlist Splitting</h6>
+                            <p class="small text-muted">Split large collections into smaller, manageable playlists.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

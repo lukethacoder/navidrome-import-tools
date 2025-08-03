@@ -1,0 +1,304 @@
+/* Custom styles for Spotify Migration Tool */
+
+:root {
+    --spotify-green: #1db954;
+    --spotify-black: #191414;
+    --spotify-dark-gray: #121212;
+    --spotify-gray: #535353;
+    --spotify-light-gray: #b3b3b3;
+}
+
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.navbar-brand {
+    font-weight: 600;
+}
+
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid #e9ecef;
+    font-weight: 600;
+}
+
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn-primary {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.btn-success {
+    background-color: var(--spotify-green);
+    border-color: var(--spotify-green);
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-warning {
+    background-color: #ffc107;
+    border-color: #ffc107;
+    color: #212529;
+}
+
+.progress {
+    height: 8px;
+    border-radius: 4px;
+}
+
+.progress-bar {
+    background-color: var(--spotify-green);
+    transition: width 0.3s ease;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.875rem;
+}
+
+.table td {
+    font-size: 0.875rem;
+    vertical-align: middle;
+}
+
+.badge {
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.alert {
+    border: none;
+    border-radius: 8px;
+}
+
+.modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 12px 12px 0 0;
+}
+
+.modal-footer {
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 12px 12px;
+}
+
+.form-control {
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    border-color: var(--spotify-green);
+    box-shadow: 0 0 0 0.2rem rgba(29, 185, 84, 0.25);
+}
+
+.text-spotify {
+    color: var(--spotify-green) !important;
+}
+
+.bg-spotify {
+    background-color: var(--spotify-green) !important;
+}
+
+/* Loading spinner */
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Playlist item styling */
+.playlist-item {
+    cursor: pointer;
+    padding: 0.75rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.playlist-item:hover {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+}
+
+.playlist-item.selected {
+    background-color: rgba(29, 185, 84, 0.1);
+    border-color: var(--spotify-green);
+}
+
+/* Track list styling */
+.track-item {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.track-item:last-child {
+    border-bottom: none;
+}
+
+/* Status indicators */
+.status-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-connected {
+    background-color: var(--spotify-green);
+}
+
+.status-disconnected {
+    background-color: #dc3545;
+}
+
+.status-warning {
+    background-color: #ffc107;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.5rem;
+        border-radius: 6px !important;
+    }
+    
+    .btn-group .btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Animation classes */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Success/Error states */
+.success-state {
+    color: var(--spotify-green);
+}
+
+.error-state {
+    color: #dc3545;
+}
+
+.warning-state {
+    color: #ffc107;
+}
+
+/* Code blocks */
+pre {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 1rem;
+    font-size: 0.875rem;
+    overflow-x: auto;
+}
+
+code {
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.875rem;
+}
+
+/* Utility classes */
+.text-small {
+    font-size: 0.875rem;
+}
+
+.text-xs {
+    font-size: 0.75rem;
+}
+
+.border-spotify {
+    border-color: var(--spotify-green) !important;
+}
+
+.shadow-sm {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+}
+
+.shadow-md {
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1) !important;
+}
