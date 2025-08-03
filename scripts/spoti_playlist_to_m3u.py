@@ -4,7 +4,7 @@ import json
 import os
 
 # Path to your Navidrome SQLite database file
-DB_PATH = 'navidrome.db'
+DB_PATH = os.path.join(os.path.dirname(__file__), 'navidrome.db')
 
 def navidrome_search_track_db(conn, track_name, artist_name):
     """Search Navidrome database for track by name and artist using SQL LIKE queries."""
