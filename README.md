@@ -1,6 +1,6 @@
-# Navidrome Import Tools - Web Frontend
+# Navidrome Import Tools
 
-A modern web interface for importing Spotify playlists and liked songs to M3U format or Lidarr.
+A collection of tools for importing Spotify playlists and liked songs to M3U format or Lidarr.
 
 ## Features
 
@@ -45,7 +45,7 @@ A modern web interface for importing Spotify playlists and liked songs to M3U fo
    ```env
    CLIENT_ID="your_spotify_client_id"
    CLIENT_SECRET="your_spotify_client_secret"
-   REDIRECT_URI="http://localhost:5000/callback"
+   REDIRECT_URI="http://localhost:8888/callback"
    LIDARR_URL="http://localhost:8686/api/v1"
    API_KEY="your_lidarr_api_key"
    ```
@@ -54,7 +54,7 @@ A modern web interface for importing Spotify playlists and liked songs to M3U fo
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Create a new app
-3. Add `http://localhost:5000/callback` to Redirect URIs
+3. Add `http://localhost:8888/callback` to Redirect URIs
 4. Copy Client ID and Client Secret to your `.env` file
 
 ## Usage
@@ -65,7 +65,7 @@ A modern web interface for importing Spotify playlists and liked songs to M3U fo
 python app.py
 ```
 
-The web interface will be available at `http://localhost:5000`
+The web interface will be available at `http://localhost:8888`
 
 ### Basic Workflow
 

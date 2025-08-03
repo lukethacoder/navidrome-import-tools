@@ -11,8 +11,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 
-# Add parent directory to path to import existing scripts
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add scripts directory to path to import existing scripts
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'scripts'))
 
 load_dotenv()
 
@@ -259,7 +259,6 @@ def generate_m3u():
             output_file = f"{playlist_name.replace(' ', '_')}.m3u"
             
             # Import and use the existing M3U generation function
-            sys.path.append('..')
             from spoti_playlist_to_m3u import generate_m3u_from_db
             
             socketio.emit('progress', {'message': 'Processing tracks with Navidrome database...', 'progress': 50})
@@ -291,9 +290,6 @@ def send_to_lidarr():
             # Step 1: Process with MusicBrainz
             socketio.emit('progress', {'message': 'Looking up albums in MusicBrainz...', 'progress': 20})
             
-            # Import and modify the existing scripts
-            sys.path.append('..')
-            
             # Temporarily modify the input file for process_spotify_mb
             import process_spotify_mb
             original_input = process_spotify_mb.INPUT_FILE
@@ -305,7 +301,7 @@ def send_to_lidarr():
             # This would need to be refactored to work with the web interface
             # For now, we'll call it as a subprocess
             result = subprocess.run([
-                'python', '../process_spotify_mb.py'
+                'python', 'scripts/process_spotify_mb.py'
             ], capture_output=True, text=True, cwd='.')
             
             if result.returncode != 0:
@@ -315,7 +311,7 @@ def send_to_lidarr():
             
             # Step 2: Send to Lidarr
             result = subprocess.run([
-                'python', '../mb_lidarr_sync.py'
+                'python', 'scripts/mb_lidarr_sync.py'
             ], capture_output=True, text=True, cwd='.')
             
             if result.returncode != 0:
@@ -381,11 +377,15 @@ def test_navidrome():
     try:
         import sqlite3
         
-        # If path is relative, check in parent directory first
+        # If path is relative, check in scripts directory first, then parent directory
         if not os.path.isabs(db_path):
-            parent_db_path = os.path.join('..', db_path)
-            if os.path.exists(parent_db_path):
-                db_path = parent_db_path
+            scripts_db_path = os.path.join('scripts', db_path)
+            if os.path.exists(scripts_db_path):
+                db_path = scripts_db_path
+            else:
+                parent_db_path = os.path.join('..', db_path)
+                if os.path.exists(parent_db_path):
+                    db_path = parent_db_path
         
         # Check if database file exists
         if not os.path.exists(db_path):
