@@ -2,6 +2,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const playlistForm = document.getElementById('playlist-form');
     const playlistInput = document.getElementById('playlist-input');
+    const downloadJsonBtn = document.getElementById('download-json');
     const generateM3UBtn = document.getElementById('generate-m3u');
     const sendToLidarrBtn = document.getElementById('send-to-lidarr');
     const userPlaylistsDiv = document.getElementById('user-playlists');
@@ -21,6 +22,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             await fetchPlaylist(playlistId);
+        });
+    }
+
+    // Handle JSON download
+    if (downloadJsonBtn) {
+        downloadJsonBtn.addEventListener('click', () => {
+            if (!window.spotifyApp.currentPlaylistData) {
+                window.spotifyApp.showError('Please fetch a playlist first');
+                return;
+            }
+
+            window.spotifyApp.downloadJSON(window.spotifyApp.currentPlaylistData, window.spotifyApp.currentPlaylistName || 'playlist');
         });
     }
 

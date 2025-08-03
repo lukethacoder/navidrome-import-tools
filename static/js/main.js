@@ -4,6 +4,8 @@ class SpotifyMigrationApp {
         this.socket = null;
         this.currentTempFile = null;
         this.currentPlaylistName = null;
+        this.currentPlaylistData = null;
+        this.currentLikedSongsData = null;
         this.init();
     }
 
@@ -159,6 +161,7 @@ class SpotifyMigrationApp {
     handlePlaylistFetched(data) {
         this.currentTempFile = data.temp_file;
         this.currentPlaylistName = data.playlist_name;
+        this.currentPlaylistData = data.tracks;
 
         // Show playlist results
         const resultsDiv = document.getElementById('playlist-results');
@@ -193,6 +196,7 @@ class SpotifyMigrationApp {
     // Liked songs handling
     handleLikedSongsFetched(data) {
         this.currentTempFile = data.temp_file;
+        this.currentLikedSongsData = data.tracks;
 
         // Show liked songs results
         const resultsDiv = document.getElementById('liked-songs-results');
@@ -238,6 +242,23 @@ class SpotifyMigrationApp {
     // Lidarr completion handling
     handleLidarrComplete(data) {
         this.showSuccess(data.message);
+    }
+
+    // Download JSON function
+    downloadJSON(data, filename) {
+        const jsonString = JSON.stringify(data, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${filename}_${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        this.showSuccess(`JSON file "${a.download}" has been downloaded successfully!`);
     }
 
     // Utility functions

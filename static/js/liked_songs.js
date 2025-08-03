@@ -1,6 +1,7 @@
 // Liked Songs page JavaScript
 document.addEventListener('DOMContentLoaded', () => {
     const fetchLikedBtn = document.getElementById('fetch-liked-songs');
+    const downloadJsonBtn = document.getElementById('download-json-liked');
     const generateM3UBtn = document.getElementById('generate-m3u-liked');
     const sendToLidarrBtn = document.getElementById('send-to-lidarr-liked');
     const splitPlaylistsBtn = document.getElementById('split-playlists');
@@ -12,6 +13,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (fetchLikedBtn) {
         fetchLikedBtn.addEventListener('click', async () => {
             await fetchLikedSongs();
+        });
+    }
+
+    // Handle JSON download
+    if (downloadJsonBtn) {
+        downloadJsonBtn.addEventListener('click', () => {
+            if (!window.spotifyApp.currentLikedSongsData) {
+                window.spotifyApp.showError('Please fetch your liked songs first');
+                return;
+            }
+
+            window.spotifyApp.downloadJSON(window.spotifyApp.currentLikedSongsData, 'liked_songs');
         });
     }
 
