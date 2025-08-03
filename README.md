@@ -3,6 +3,7 @@
 A collection of tools for importing Spotify playlists and liked songs to M3U format or Lidarr.
 
 ## Features
+<table> <tr> <td> <img width="100%" height="auto" alt="Spotify playlist import screenshot 1" src="https://github.com/user-attachments/assets/71ff5a98-d05e-4012-9642-558ab349f0cf" /> </td> <td> <img width="100%" height="auto" alt="Spotify playlist import screenshot 3" src="https://github.com/user-attachments/assets/5b21d6f8-d497-4fa6-b7f5-3feb8ec97509" /> </td><td> <img width="100%" height="auto" alt="Spotify playlist import screenshot 2" src="https://github.com/user-attachments/assets/1aa60389-2305-4500-a0e1-080b4052d08f" /> </td>  </tr> </table>
 
 - **Spotify Authentication**: Secure OAuth integration with Spotify
 - **Playlist Management**: Fetch and export any Spotify playlist
