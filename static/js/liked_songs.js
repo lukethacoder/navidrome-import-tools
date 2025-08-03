@@ -18,13 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle JSON download
     if (downloadJsonBtn) {
-        downloadJsonBtn.addEventListener('click', () => {
-            if (!window.spotifyApp.currentLikedSongsData) {
+        downloadJsonBtn.addEventListener('click', async () => {
+            if (!window.spotifyApp.currentTempFile) {
                 window.spotifyApp.showError('Please fetch your liked songs first');
                 return;
             }
 
-            window.spotifyApp.downloadJSON(window.spotifyApp.currentLikedSongsData, 'liked_songs');
+            await downloadFullJSON();
         });
     }
 
@@ -188,6 +188,27 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             window.spotifyApp.hideProgress();
             window.spotifyApp.showError(`Failed to split liked songs: ${error.message}`);
+        }
+    }
+
+    // Download full JSON data
+    async function downloadFullJSON() {
+        try {
+            const response = await window.spotifyApp.makeRequest('/api/download-json', {
+                method: 'POST',
+                body: JSON.stringify({
+                    temp_file: window.spotifyApp.currentTempFile,
+                    filename: 'liked_songs'
+                })
+            });
+
+            if (response.success) {
+                window.spotifyApp.downloadJSON(response.data, 'liked_songs');
+            } else {
+                window.spotifyApp.showError('Failed to download JSON data');
+            }
+        } catch (error) {
+            window.spotifyApp.showError(`Failed to download JSON: ${error.message}`);
         }
     }
 

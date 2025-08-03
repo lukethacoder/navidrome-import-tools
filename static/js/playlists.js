@@ -27,13 +27,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Handle JSON download
     if (downloadJsonBtn) {
-        downloadJsonBtn.addEventListener('click', () => {
-            if (!window.spotifyApp.currentPlaylistData) {
+        downloadJsonBtn.addEventListener('click', async () => {
+            if (!window.spotifyApp.currentTempFile) {
                 window.spotifyApp.showError('Please fetch a playlist first');
                 return;
             }
 
-            window.spotifyApp.downloadJSON(window.spotifyApp.currentPlaylistData, window.spotifyApp.currentPlaylistName || 'playlist');
+            await downloadFullJSON();
         });
     }
 
@@ -177,6 +177,27 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             window.spotifyApp.hideProgress();
             window.spotifyApp.showError(`Failed to send to Lidarr: ${error.message}`);
+        }
+    }
+
+    // Download full JSON data
+    async function downloadFullJSON() {
+        try {
+            const response = await window.spotifyApp.makeRequest('/api/download-json', {
+                method: 'POST',
+                body: JSON.stringify({
+                    temp_file: window.spotifyApp.currentTempFile,
+                    filename: window.spotifyApp.currentPlaylistName || 'playlist'
+                })
+            });
+
+            if (response.success) {
+                window.spotifyApp.downloadJSON(response.data, window.spotifyApp.currentPlaylistName || 'playlist');
+            } else {
+                window.spotifyApp.showError('Failed to download JSON data');
+            }
+        } catch (error) {
+            window.spotifyApp.showError(`Failed to download JSON: ${error.message}`);
         }
     }
 

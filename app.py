@@ -431,6 +431,29 @@ def test_navidrome():
             'message': f'Error: {str(e)}'
         }), 500
 
+@app.route('/api/download-json', methods=['POST'])
+def download_json():
+    data = request.get_json()
+    temp_file = data.get('temp_file')
+    filename = data.get('filename', 'spotify_data')
+    
+    if not temp_file or not os.path.exists(temp_file):
+        return jsonify({'error': 'Invalid temp file'}), 400
+    
+    try:
+        # Read the full data from the temporary file
+        with open(temp_file, 'r', encoding='utf-8') as f:
+            full_data = json.load(f)
+        
+        return jsonify({
+            'success': True,
+            'data': full_data,
+            'count': len(full_data)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to read data: {str(e)}'}), 500
+
 @app.route('/download/<filename>')
 def download_file(filename):
     try:
