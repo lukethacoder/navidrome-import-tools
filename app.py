@@ -195,7 +195,13 @@ def fetch_liked_songs():
     
     def fetch_liked_task():
         try:
-            socketio.emit('progress', {'message': 'Starting liked songs fetch...', 'progress': 0})
+            socketio.emit('progress', {'message': 'Getting total count of liked songs...', 'progress': 0})
+            
+            # First, get the total count by making a single request
+            initial_results = sp.current_user_saved_tracks(limit=1, offset=0)
+            total_tracks = initial_results['total']
+            
+            socketio.emit('progress', {'message': f'Found {total_tracks} liked songs. Starting fetch...', 'progress': 5})
             
             tracks = []
             limit = 50
@@ -225,7 +231,11 @@ def fetch_liked_songs():
                     })
                 
                 offset += len(items)
-                socketio.emit('progress', {'message': f'Fetched {offset} liked songs...', 'progress': min(90, offset // 10)})
+                # Calculate accurate progress: 5% for initial setup, 90% for fetching, 5% for saving
+                progress = 5 + int((offset / total_tracks) * 90)
+                socketio.emit('progress', {'message': f'Fetched {offset} of {total_tracks} liked songs...', 'progress': progress})
+            
+            socketio.emit('progress', {'message': 'Saving data to file...', 'progress': 95})
             
             # Save to temporary file
             temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8')
@@ -235,6 +245,7 @@ def fetch_liked_songs():
             socketio.emit('progress', {'message': f'Completed! Fetched {len(tracks)} liked songs.', 'progress': 100})
             socketio.emit('liked_songs_fetched', {
                 'track_count': len(tracks),
+                'total_count': total_tracks,
                 'temp_file': temp_file.name,
                 'tracks': tracks[:10]  # Send first 10 for preview
             })
