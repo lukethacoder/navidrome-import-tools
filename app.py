@@ -28,6 +28,11 @@ SPOTIFY_REDIRECT_URI = os.getenv('REDIRECT_URI', 'http://localhost:8888/callback
 # Update redirect URI for web app
 os.environ['REDIRECT_URI'] = SPOTIFY_REDIRECT_URI
 
+# Database configuration
+DATABASE_PATH = os.getenv('DATABASE_PATH', 'scripts/navidrome.db')
+OUTPUT_DIR = os.getenv('OUTPUT_DIR', '.')
+DATA_DIR = os.getenv('DATA_DIR', 'data')
+
 def get_spotify_oauth():
     return SpotifyOAuth(
         client_id=SPOTIFY_CLIENT_ID,
@@ -372,10 +377,14 @@ def test_lidarr():
 @app.route('/api/test-navidrome', methods=['POST'])
 def test_navidrome():
     data = request.get_json()
-    db_path = data.get('db_path', 'navidrome.db')
+    db_path = data.get('db_path', DATABASE_PATH)
     
     try:
         import sqlite3
+        
+        # Use the configured database path if no specific path provided
+        if not db_path:
+            db_path = DATABASE_PATH
         
         # If path is relative, check in scripts directory first, then parent directory
         if not os.path.isabs(db_path):
@@ -391,7 +400,7 @@ def test_navidrome():
         if not os.path.exists(db_path):
             return jsonify({
                 'success': False,
-                'message': f'Database file not found: {db_path}. Checked current directory and parent directory.'
+                'message': f'Database file not found: {db_path}. Current DATABASE_PATH: {DATABASE_PATH}'
             }), 400
         
         # Try to connect and query the database
@@ -461,5 +470,24 @@ def download_file(filename):
     except Exception as e:
         return jsonify({'error': str(e)}), 404
 
+@app.route('/health')
+def health_check():
+    """Health check endpoint for Docker"""
+    return jsonify({
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat(),
+        'database_path': DATABASE_PATH,
+        'database_exists': os.path.exists(DATABASE_PATH)
+    })
+
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=8888)
+    # Check if we're in production environment
+    is_production = os.getenv('FLASK_ENV') == 'production'
+    
+    if is_production:
+        # Production mode - use allow_unsafe_werkzeug for simplicity
+        # In a real production environment, you'd want to use gunicorn or similar
+        socketio.run(app, debug=False, host='0.0.0.0', port=8888, allow_unsafe_werkzeug=True)
+    else:
+        # Development mode
+        socketio.run(app, debug=True, host='0.0.0.0', port=8888)
