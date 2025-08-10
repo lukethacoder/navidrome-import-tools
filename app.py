@@ -6,7 +6,9 @@ import json
 import subprocess
 import threading
 import tempfile
-from datetime import datetime
+from datetime import datetime, timedelta
+import hashlib
+import secrets
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
@@ -17,7 +19,32 @@ sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'script
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(24)
+
+# Secure session configuration
+def get_secret_key():
+    """Get or generate a persistent secret key"""
+    secret_key_file = os.path.join(os.path.dirname(__file__), '.secret_key')
+    
+    if os.path.exists(secret_key_file):
+        with open(secret_key_file, 'rb') as f:
+            return f.read()
+    else:
+        # Generate a new secret key
+        secret_key = secrets.token_bytes(32)
+        with open(secret_key_file, 'wb') as f:
+            f.write(secret_key)
+        # Set restrictive permissions
+        os.chmod(secret_key_file, 0o600)
+        return secret_key
+
+app.config['SECRET_KEY'] = get_secret_key()
+
+# Session security configuration
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') == 'production'  # HTTPS only in production
+app.config['SESSION_COOKIE_HTTPONLY'] = True  # Prevent XSS access to cookies
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'  # CSRF protection
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=2)  # 2-hour session timeout
+
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Spotify OAuth configuration
@@ -41,21 +68,86 @@ def get_spotify_oauth():
         scope="playlist-read-private playlist-read-collaborative user-library-read playlist-modify-private playlist-modify-public"
     )
 
+def is_session_valid():
+    """Enhanced session validation with security checks"""
+    if 'token_info' not in session:
+        return False
+    
+    # Check session timeout
+    if 'session_created' in session:
+        session_age = datetime.now() - datetime.fromisoformat(session['session_created'])
+        if session_age > app.config['PERMANENT_SESSION_LIFETIME']:
+            session.clear()
+            return False
+    
+    # Check if session has required security markers
+    if 'session_id' not in session:
+        return False
+    
+    return True
+
+def create_secure_session(token_info):
+    """Create a secure session with additional security markers"""
+    session.clear()
+    session['token_info'] = token_info
+    session['session_created'] = datetime.now().isoformat()
+    session['session_id'] = secrets.token_hex(16)
+    session['user_agent_hash'] = hashlib.sha256(
+        request.headers.get('User-Agent', '').encode()
+    ).hexdigest()[:16]
+    session.permanent = True
+
+def validate_session_security():
+    """Validate session security markers"""
+    if not is_session_valid():
+        return False
+    
+    # Check user agent consistency (basic fingerprinting)
+    current_ua_hash = hashlib.sha256(
+        request.headers.get('User-Agent', '').encode()
+    ).hexdigest()[:16]
+    
+    if session.get('user_agent_hash') != current_ua_hash:
+        # User agent changed - potential session hijacking
+        session.clear()
+        return False
+    
+    return True
+
 def get_spotify_client():
+    if not validate_session_security():
+        return None
+    
     token_info = session.get('token_info')
     if not token_info:
         return None
     
     sp_oauth = get_spotify_oauth()
     if sp_oauth.is_token_expired(token_info):
-        token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
-        session['token_info'] = token_info
+        try:
+            token_info = sp_oauth.refresh_access_token(token_info['refresh_token'])
+            session['token_info'] = token_info
+        except Exception:
+            # Token refresh failed, clear session
+            session.clear()
+            return None
     
     return spotipy.Spotify(auth=token_info['access_token'])
 
+def require_auth(f):
+    """Decorator for routes that require authentication"""
+    from functools import wraps
+    
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not validate_session_security():
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
+
 @app.route('/')
 def dashboard():
-    return render_template('dashboard.html', authenticated='token_info' in session)
+    return render_template('dashboard.html', authenticated=validate_session_security())
 
 @app.route('/login')
 def login():
@@ -66,11 +158,17 @@ def login():
 @app.route('/callback')
 def callback():
     sp_oauth = get_spotify_oauth()
-    session.clear()
     code = request.args.get('code')
-    token_info = sp_oauth.get_access_token(code)
-    session['token_info'] = token_info
-    return redirect(url_for('dashboard'))
+    if not code:
+        return redirect(url_for('login'))
+    
+    try:
+        token_info = sp_oauth.get_access_token(code)
+        create_secure_session(token_info)
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        # OAuth failed, redirect to login
+        return redirect(url_for('login'))
 
 @app.route('/logout')
 def logout():
@@ -78,25 +176,40 @@ def logout():
     return redirect(url_for('dashboard'))
 
 @app.route('/playlists')
+@require_auth
 def playlists():
-    if 'token_info' not in session:
-        return redirect(url_for('login'))
-    return render_template('playlists.html')
+    return render_template('playlists.html', authenticated=True)
 
 @app.route('/liked-songs')
+@require_auth
 def liked_songs():
-    if 'token_info' not in session:
-        return redirect(url_for('login'))
-    return render_template('liked_songs.html')
+    return render_template('liked_songs.html', authenticated=True)
 
 @app.route('/settings')
 def settings():
     return render_template('settings.html', 
-                         authenticated='token_info' in session,
+                         authenticated=validate_session_security(),
                          spotify_client_id=SPOTIFY_CLIENT_ID or '',
                          redirect_uri=SPOTIFY_REDIRECT_URI,
                          lidarr_url=os.getenv('LIDARR_URL', ''),
                          lidarr_api_key=os.getenv('API_KEY', ''))
+
+@app.route('/api/user-profile')
+def get_user_profile():
+    sp = get_spotify_client()
+    if not sp:
+        return jsonify({'error': 'Not authenticated'}), 401
+    
+    try:
+        user = sp.current_user()
+        return jsonify({
+            'display_name': user.get('display_name') or user.get('id'),
+            'id': user.get('id'),
+            'followers': user.get('followers', {}).get('total', 0),
+            'images': user.get('images', [])
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/user-playlists')
 def get_user_playlists():

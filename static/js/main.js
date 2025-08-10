@@ -12,6 +12,7 @@ class SpotifyMigrationApp {
     init() {
         this.initSocket();
         this.bindEvents();
+        this.loadUserProfile();
     }
 
     initSocket() {
@@ -276,6 +277,36 @@ class SpotifyMigrationApp {
 
     formatDate(dateString) {
         return new Date(dateString).toLocaleDateString();
+    }
+
+    // User profile loading
+    async loadUserProfile() {
+        const usernameElement = document.getElementById('username');
+        const userDetailsElement = document.getElementById('user-details');
+        
+        // Only load if elements exist (user is authenticated)
+        if (!usernameElement || !userDetailsElement) {
+            return;
+        }
+
+        try {
+            const profile = await this.makeRequest('/api/user-profile');
+            
+            // Update username in navbar
+            usernameElement.textContent = profile.display_name || profile.id;
+            
+            // Update user details in dropdown
+            const followerText = profile.followers > 0 ? `${profile.followers} followers` : 'No followers';
+            userDetailsElement.innerHTML = `
+                <i class="fab fa-spotify me-1"></i>${profile.id}<br>
+                <small>${followerText}</small>
+            `;
+            
+        } catch (error) {
+            console.error('Failed to load user profile:', error);
+            usernameElement.textContent = 'User';
+            userDetailsElement.textContent = 'Profile unavailable';
+        }
     }
 
     // Animation helpers

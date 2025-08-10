@@ -166,6 +166,9 @@ scripts/.cache
 # Environment variables (keep .env.example for reference)
 .env
 
+# Security files
+.secret_key
+
 # Database files
 *.db
 *.db-shm
