@@ -2,10 +2,95 @@
 import sqlite3
 import json
 import os
+from collections import defaultdict
 
 # Path to your Navidrome SQLite database file
 DB_PATH = os.getenv('DATABASE_PATH', 'navidrome.db')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', '.')
+
+class NavidromeLibrary:
+    """In-memory representation of Navidrome library for fast searching."""
+    
+    def __init__(self, conn):
+        print("Loading library into memory...", flush=True)
+        cursor = conn.execute("""
+            SELECT id, path, title, artist, album_artist, album, duration
+            FROM media_file
+        """)
+        
+        self.tracks = []
+        self.title_index = defaultdict(list)
+        self.artist_index = defaultdict(list)
+        
+        for row in cursor:
+            track = {
+                'id': row[0],
+                'path': row[1],
+                'title': row[2],
+                'artist': row[3],
+                'album_artist': row[4],
+                'album': row[5],
+                'duration': row[6],
+                'title_lower': row[2].lower() if row[2] else '',
+                'artist_lower': row[3].lower() if row[3] else '',
+                'album_artist_lower': row[4].lower() if row[4] else '',
+            }
+            self.tracks.append(track)
+            
+            # Index by normalized title for fast lookup
+            if track['title_lower']:
+                self.title_index[track['title_lower']].append(track)
+            
+            # Index by artist tokens
+            if track['artist_lower']:
+                for token in track['artist_lower'].split('•'):
+                    token = token.strip()
+                    if token:
+                        self.artist_index[token].append(track)
+        
+        print(f"Loaded {len(self.tracks)} tracks into memory", flush=True)
+    
+    def search_track(self, track_name, artist_name):
+        """Fast in-memory search for track."""
+        track_lower = track_name.lower()
+        artist_lower = artist_name.lower()
+        primary_artist = artist_name.split(',')[0].strip().lower()
+        core_track = track_name.split('(')[0].strip().lower()
+        
+        # Strategy 1: Exact title match with artist verification
+        if track_lower in self.title_index:
+            for track in self.title_index[track_lower]:
+                if self._artist_matches(track, artist_lower, primary_artist):
+                    return track
+        
+        # Strategy 2: Core title match (without feat. parts)
+        if core_track != track_lower and core_track in self.title_index:
+            for track in self.title_index[core_track]:
+                if self._artist_matches(track, artist_lower, primary_artist):
+                    return track
+        
+        # Strategy 3: Fuzzy title match with artist check
+        for track in self.tracks:
+            if track_lower in track['title_lower'] or core_track in track['title_lower']:
+                if self._artist_matches(track, artist_lower, primary_artist):
+                    return track
+        
+        # Strategy 4: Artist-first search (check artist index then verify title)
+        if primary_artist in self.artist_index:
+            for track in self.artist_index[primary_artist]:
+                if track_lower in track['title_lower'] or core_track in track['title_lower']:
+                    return track
+        
+        return None
+    
+    def _artist_matches(self, track, artist_lower, primary_artist):
+        """Check if track artist matches the search artist."""
+        return (
+            artist_lower in track['artist_lower'] or
+            artist_lower in track['album_artist_lower'] or
+            primary_artist in track['artist_lower'] or
+            primary_artist in track['album_artist_lower']
+        )
 
 def navidrome_search_track_db(conn, track_name, artist_name):
     """Search Navidrome database for track by name and artist using SQL LIKE queries."""
@@ -92,7 +177,7 @@ def navidrome_search_track_db(conn, track_name, artist_name):
     
     return None
 
-def generate_m3u_from_db(playlist_name, spotify_playlist_json_path, output_path, test_mode=False):
+def generate_m3u_from_db(playlist_name, spotify_playlist_json_path, output_path, test_mode=False, use_memory=True):
     """Generate M3U playlist from Spotify JSON using direct database access."""
     
     with open(spotify_playlist_json_path, 'r', encoding='utf-8') as f:
@@ -121,12 +206,25 @@ def generate_m3u_from_db(playlist_name, spotify_playlist_json_path, output_path,
         conn = sqlite3.connect(f'file:{DB_PATH}?mode=ro', uri=True)
         print("Database connected successfully", flush=True)
         
+        # Load library into memory for fast searching
+        library = None
+        if use_memory:
+            library = NavidromeLibrary(conn)
+        else:
+            # Start transaction for better performance with direct queries
+            conn.execute("BEGIN TRANSACTION")
+
         for i, track in enumerate(spotify_tracks):
             track_name = track['track_name']
             artist_name = track['artist_name']
             duration_sec = int(track['duration_ms'] / 1000)
             
-            song = navidrome_search_track_db(conn, track_name, artist_name)
+            # Use in-memory search or optimized database query
+            if library:
+                song = library.search_track(track_name, artist_name)
+            else:
+                song = navidrome_search_track_db(conn, track_name, artist_name)
+
             if song:
                 file_path = song['path']
                 if file_path:
@@ -156,6 +254,9 @@ def generate_m3u_from_db(playlist_name, spotify_playlist_json_path, output_path,
             if processed_count % 5 == 0 or processed_count == total_tracks:
                 percent = int((processed_count / total_tracks) * 100)
                 print(f"\r{percent}% ({processed_count}/{total_tracks}) - Matched: {matched_count}", flush=True)
+
+        if not use_memory:
+            conn.execute("COMMIT")
 
     except sqlite3.Error as e:
         print(f"\nSQLite error: {e}", flush=True)
@@ -241,12 +342,15 @@ def main():
             spotify_json = sys.argv[3] if len(sys.argv) > 3 else 'playlist_tracks.json'
             output_file = sys.argv[4] if len(sys.argv) > 4 else 'navidrome_playlist.m3u'
             # test_mode = '--full' not in sys.argv
+            use_memory = '--no-memory' not in sys.argv
             
+            print(f"Using {'in-memory' if use_memory else 'direct database'} search mode")
             if not os.path.exists(spotify_json):
                 print(f"Error: Spotify playlist JSON file not found: {spotify_json}")
                 return
                 
-            generate_m3u_from_db(playlist_name, spotify_json, output_file, test_mode=False)
+            generate_m3u_from_db(playlist_name, spotify_json, output_file, test_mode=False, use_memory=use_memory)
+
         else:
             print("Unknown command. Use 'list' or 'generate'")
     else:
