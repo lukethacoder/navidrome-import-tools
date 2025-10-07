@@ -175,6 +175,7 @@ scripts/.cache
 *.db-wal
 navidrome.db*
 scripts/navidrome.db*
+data/navidrome.db*
 
 # Generated data files
 *.json

@@ -8,8 +8,9 @@ services:
     volumes:
       # Mount external data directory for Navidrome database
       - ./data:/app/data
+      # - ./data/navidrome.db:/app/scripts/navidrome.db
       # Optional: Mount output directory for persistent storage
-      # - ./output:/app/output
+      - ./output:/app/output
     environment:
       - DATABASE_PATH=/app/data/navidrome.db
       - OUTPUT_DIR=/app/output

@@ -56,7 +56,7 @@ SPOTIFY_REDIRECT_URI = os.getenv('REDIRECT_URI', 'http://localhost:8888/callback
 os.environ['REDIRECT_URI'] = SPOTIFY_REDIRECT_URI
 
 # Database configuration
-DATABASE_PATH = os.getenv('DATABASE_PATH', 'scripts/navidrome.db')
+DATABASE_PATH = os.getenv('DATABASE_PATH', 'navidrome.db')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', '.')
 DATA_DIR = os.getenv('DATA_DIR', 'data')
 
@@ -391,7 +391,7 @@ def generate_m3u():
             from spoti_playlist_to_m3u import generate_m3u_from_db
             
             socketio.emit('progress', {'message': 'Processing tracks with Navidrome database...', 'progress': 50})
-            generate_m3u_from_db(temp_file, output_file, test_mode=False)
+            generate_m3u_from_db(playlist_name, temp_file, output_file, test_mode=False)
             
             socketio.emit('progress', {'message': 'M3U playlist generated successfully!', 'progress': 100})
             socketio.emit('m3u_generated', {'file_path': output_file})
