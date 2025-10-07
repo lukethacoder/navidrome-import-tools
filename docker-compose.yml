@@ -1,14 +1,15 @@
 version: '3.8'
 
 services:
-  spotify-migration:
-    build: .
+  navidrome-import-tools:
+    image: ethanbarclay/navidrome-import-tools:latest
+    # Uncomment to build locally instead of pulling from Docker Hub
+    # build: .
     ports:
       - "8888:8888"
     volumes:
       # Mount external data directory for Navidrome database
       - ./data:/app/data
-      # - ./data/navidrome.db:/app/scripts/navidrome.db
       # Optional: Mount output directory for persistent storage
       - ./output:/app/output
     environment:
