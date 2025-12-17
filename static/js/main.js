@@ -98,10 +98,26 @@ class SpotifyMigrationApp {
     }
 
     hideProgress() {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('progressModal'));
-        if (modal) {
-            modal.hide();
+        const modalElement = document.getElementById('progressModal');
+        if (modalElement) {
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                // Dispose completely destroys the modal instance
+                modal.dispose();
+            }
+            // Clean up any lingering modal state
+            modalElement.classList.remove('show');
+            modalElement.style.display = 'none';
+            modalElement.setAttribute('aria-hidden', 'true');
+            modalElement.removeAttribute('aria-modal');
+            modalElement.removeAttribute('role');
         }
+        // Remove any leftover backdrops
+        document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+        // Reset body scroll
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
     }
 
     // Error handling

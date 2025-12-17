@@ -260,12 +260,12 @@ def generate_m3u_from_db(playlist_name, spotify_playlist_json_path, output_path,
 
     except sqlite3.Error as e:
         print(f"\nSQLite error: {e}", flush=True)
-        return
+        raise RuntimeError(f"Database error: {e}")
     except Exception as e:
         print(f"\n!!! Unexpected error: {e}", flush=True)
         import traceback
         traceback.print_exc()
-        return
+        raise RuntimeError(f"Failed to process tracks: {e}")
     finally:
         if conn:
             conn.close()
