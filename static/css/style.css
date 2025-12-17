@@ -189,8 +189,13 @@ body {
 
 /* Custom scrollbar */
 .custom-scrollbar {
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
+}
+
+/* Playlists page - Your Playlists fills remaining viewport */
+#user-playlists.custom-scrollbar {
+    height: calc(100vh - 540px);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
