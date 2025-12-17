@@ -543,10 +543,17 @@ def send_to_lidarr():
             ], capture_output=True, text=True, cwd='.')
 
             if result.returncode != 0:
-                raise Exception(f"Lidarr sync failed: {result.stderr}")
+                # Extract error message from output
+                error_msg = result.stdout.strip() or result.stderr.strip() or 'Unknown error'
+                # Look for ERROR: lines
+                for line in (result.stdout + result.stderr).split('\n'):
+                    if line.startswith('ERROR:'):
+                        error_msg = line
+                        break
+                raise Exception(error_msg)
 
             socketio.emit('progress', {'message': 'Successfully sent to Lidarr!', 'progress': 100})
-            socketio.emit('lidarr_complete', {'message': f'{len(mb_albums)} albums have been added to Lidarr'})
+            socketio.emit('lidarr_complete', {'message': f'{len(mb_albums)} albums processed by Lidarr'})
 
         except Exception as e:
             socketio.emit('error', {'message': f'Error sending to Lidarr: {str(e)}'})
