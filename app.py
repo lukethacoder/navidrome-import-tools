@@ -190,12 +190,16 @@ def liked_songs():
 
 @app.route('/settings')
 def settings():
-    return render_template('settings.html', 
+    return render_template('settings.html',
                          authenticated=validate_session_security(),
                          spotify_client_id=SPOTIFY_CLIENT_ID or '',
                          redirect_uri=SPOTIFY_REDIRECT_URI,
                          lidarr_url=os.getenv('LIDARR_URL', ''),
-                         lidarr_api_key=os.getenv('API_KEY', ''))
+                         lidarr_api_key=os.getenv('API_KEY', ''),
+                         database_path=DATABASE_PATH,
+                         database_exists=os.path.exists(DATABASE_PATH),
+                         output_dir=OUTPUT_DIR,
+                         output_dir_exists=os.path.isdir(OUTPUT_DIR))
 
 @app.route('/api/user-profile')
 def get_user_profile():

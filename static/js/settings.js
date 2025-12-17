@@ -1,7 +1,6 @@
 // Settings page JavaScript
 document.addEventListener('DOMContentLoaded', () => {
     const lidarrForm = document.getElementById('lidarr-settings');
-    const navidromeForm = document.getElementById('navidrome-settings');
     const testLidarrBtn = document.getElementById('test-lidarr');
     const testNavidromeBtn = document.getElementById('test-navidrome');
 
@@ -10,14 +9,6 @@ document.addEventListener('DOMContentLoaded', () => {
         lidarrForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             await saveLidarrSettings();
-        });
-    }
-
-    // Handle Navidrome settings form
-    if (navidromeForm) {
-        navidromeForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            await saveNavidromeSettings();
         });
     }
 
@@ -60,25 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Save Navidrome settings
-    async function saveNavidromeSettings() {
-        const formData = {
-            db_path: document.getElementById('navidrome-db-path').value.trim(),
-            music_path_prefix: document.getElementById('music-path-prefix').value.trim()
-        };
-
-        try {
-            const response = await window.spotifyApp.makeRequest('/api/settings/navidrome', {
-                method: 'POST',
-                body: JSON.stringify(formData)
-            });
-
-            showToast('Navidrome settings saved successfully!', 'success');
-        } catch (error) {
-            window.spotifyApp.showError(`Failed to save Navidrome settings: ${error.message}`);
-        }
-    }
-
     // Test Lidarr connection
     async function testLidarrConnection() {
         const url = document.getElementById('lidarr-url').value.trim();
@@ -112,15 +84,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Test Navidrome database
+    // Test Navidrome database (uses DATABASE_PATH from server)
     async function testNavidromeDatabase() {
-        const dbPath = document.getElementById('navidrome-db-path').value.trim();
-
-        if (!dbPath) {
-            window.spotifyApp.showError('Please enter the database path');
-            return;
-        }
-
         const originalText = testNavidromeBtn.innerHTML;
         testNavidromeBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Testing...';
         testNavidromeBtn.disabled = true;
@@ -128,15 +93,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await window.spotifyApp.makeRequest('/api/test-navidrome', {
                 method: 'POST',
-                body: JSON.stringify({ db_path: dbPath })
+                body: JSON.stringify({})
             });
 
             updateStatusBadge('navidrome-status', 'success', 'Connected');
-            showTestResult('Navidrome Database Test', 'success', 
+            showTestResult('Navidrome Database Test', 'success',
                 'Successfully connected to Navidrome database!', response);
         } catch (error) {
             updateStatusBadge('navidrome-status', 'danger', 'Failed');
-            showTestResult('Navidrome Database Test', 'danger', 
+            showTestResult('Navidrome Database Test', 'danger',
                 `Database test failed: ${error.message}`, null);
         } finally {
             testNavidromeBtn.innerHTML = originalText;
@@ -148,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function loadCurrentSettings() {
         try {
             const response = await window.spotifyApp.makeRequest('/api/settings');
-            
+
             // Populate Lidarr settings
             if (response.lidarr) {
                 const lidarr = response.lidarr;
@@ -157,13 +122,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('root-folder').value = lidarr.root_folder || '/music/';
                 document.getElementById('quality-profile').value = lidarr.quality_profile_id || 1;
                 document.getElementById('metadata-profile').value = lidarr.metadata_profile_id || 1;
-            }
-
-            // Populate Navidrome settings
-            if (response.navidrome) {
-                const navidrome = response.navidrome;
-                document.getElementById('navidrome-db-path').value = navidrome.db_path || 'navidrome.db';
-                document.getElementById('music-path-prefix').value = navidrome.music_path_prefix || '/music/';
             }
         } catch (error) {
             console.error('Failed to load settings:', error);
@@ -254,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Path input validation
-    const pathInputs = document.querySelectorAll('#root-folder, #music-path-prefix');
+    const pathInputs = document.querySelectorAll('#root-folder');
     pathInputs.forEach(input => {
         input.addEventListener('blur', (e) => {
             let value = e.target.value.trim();
@@ -266,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auto-save on input change (debounced)
     let saveTimeout;
-    const autoSaveInputs = document.querySelectorAll('#lidarr-settings input, #navidrome-settings input');
+    const autoSaveInputs = document.querySelectorAll('#lidarr-settings input');
     autoSaveInputs.forEach(input => {
         input.addEventListener('input', () => {
             clearTimeout(saveTimeout);
