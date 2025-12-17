@@ -4,11 +4,54 @@ document.addEventListener('DOMContentLoaded', () => {
     const playlistInput = document.getElementById('playlist-input');
     const downloadJsonBtn = document.getElementById('download-json');
     const generateM3UBtn = document.getElementById('generate-m3u');
+    const scanMBAlbumsBtn = document.getElementById('scan-mb-albums');
     const sendToLidarrBtn = document.getElementById('send-to-lidarr');
     const userPlaylistsDiv = document.getElementById('user-playlists');
+    const mbScanStatus = document.getElementById('mb-scan-status');
+    const mbScanMessage = document.getElementById('mb-scan-message');
+
+    // Track current MB file for Lidarr
+    let currentMBFile = null;
 
     // Load user playlists on page load
     loadUserPlaylists();
+
+    // Listen for MB scan complete event
+    if (window.spotifyApp && window.spotifyApp.socket) {
+        window.spotifyApp.socket.on('mb_scan_complete', (data) => {
+            window.spotifyApp.hideProgress();
+            currentMBFile = data.mb_file;
+
+            // Enable Send to Lidarr button
+            if (sendToLidarrBtn) {
+                sendToLidarrBtn.disabled = false;
+            }
+
+            // Show status message
+            if (mbScanStatus && mbScanMessage) {
+                mbScanStatus.style.display = 'block';
+                mbScanMessage.innerHTML = `<span class="text-success"><i class="fas fa-check-circle me-1"></i>${data.found} albums found</span>, <span class="text-warning">${data.failed} failed</span>`;
+            }
+
+            // Update track list with checkmarks for found albums
+            if (data.found_albums) {
+                window.spotifyApp.updateMBStatus(data.found_albums);
+            }
+
+            window.spotifyApp.showSuccess(data.message);
+        });
+
+        // Reset MB state when new playlist is fetched
+        window.spotifyApp.socket.on('playlist_fetched', () => {
+            currentMBFile = null;
+            if (sendToLidarrBtn) {
+                sendToLidarrBtn.disabled = true;
+            }
+            if (mbScanStatus) {
+                mbScanStatus.style.display = 'none';
+            }
+        });
+    }
 
     // Handle playlist form submission
     if (playlistForm) {
@@ -49,11 +92,23 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // Handle MB Albums scan
+    if (scanMBAlbumsBtn) {
+        scanMBAlbumsBtn.addEventListener('click', async () => {
+            if (!window.spotifyApp.currentTempFile) {
+                window.spotifyApp.showError('Please fetch a playlist first');
+                return;
+            }
+
+            await scanMBAlbums();
+        });
+    }
+
     // Handle Lidarr submission
     if (sendToLidarrBtn) {
         sendToLidarrBtn.addEventListener('click', async () => {
-            if (!window.spotifyApp.currentTempFile) {
-                window.spotifyApp.showError('Please fetch a playlist first');
+            if (!currentMBFile) {
+                window.spotifyApp.showError('Please scan MusicBrainz albums first');
                 return;
             }
 
@@ -161,15 +216,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Scan MusicBrainz albums
+    async function scanMBAlbums() {
+        try {
+            window.spotifyApp.showProgress('Scanning MusicBrainz');
+
+            const response = await window.spotifyApp.makeRequest('/api/scan-mb-albums', {
+                method: 'POST',
+                body: JSON.stringify({
+                    temp_file: window.spotifyApp.currentTempFile,
+                    playlist_name: window.spotifyApp.currentPlaylistName || 'playlist'
+                })
+            });
+
+            // Progress updates will be handled by socket events
+        } catch (error) {
+            window.spotifyApp.hideProgress();
+            window.spotifyApp.showError(`Failed to scan MusicBrainz: ${error.message}`);
+        }
+    }
+
     // Send to Lidarr
     async function sendToLidarr() {
         try {
             window.spotifyApp.showProgress('Sending to Lidarr');
-            
+
             const response = await window.spotifyApp.makeRequest('/api/send-to-lidarr', {
                 method: 'POST',
                 body: JSON.stringify({
-                    temp_file: window.spotifyApp.currentTempFile
+                    mb_file: currentMBFile
                 })
             });
 

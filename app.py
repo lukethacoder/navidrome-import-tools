@@ -6,6 +6,7 @@ import json
 import subprocess
 import threading
 import tempfile
+import time
 from datetime import datetime, timedelta
 import hashlib
 import secrets
@@ -296,7 +297,7 @@ def fetch_playlist():
                 'playlist_name': playlist['name'],
                 'track_count': len(tracks),
                 'temp_file': temp_file.name,
-                'tracks': tracks[:10]  # Send first 10 for preview
+                'tracks': tracks  # Send all tracks for pagination
             })
             
         except Exception as e:
@@ -422,57 +423,137 @@ def generate_m3u():
     
     return jsonify({'message': 'M3U generation started'})
 
-@app.route('/api/send-to-lidarr', methods=['POST'])
-def send_to_lidarr():
+@app.route('/api/scan-mb-albums', methods=['POST'])
+def scan_mb_albums():
+    """Scan MusicBrainz for album IDs from a Spotify playlist"""
     data = request.get_json()
     temp_file = data.get('temp_file')
-    
+    playlist_name = data.get('playlist_name', 'playlist')
+
     if not temp_file or not os.path.exists(temp_file):
         return jsonify({'error': 'Invalid temp file'}), 400
-    
+
+    def scan_mb_task():
+        try:
+            socketio.emit('progress', {'message': 'Starting MusicBrainz album scan...', 'progress': 0})
+
+            from process_spotify_mb import clean_string, query_mb_releasegroup
+
+            # Load the playlist tracks
+            with open(temp_file, encoding='utf-8') as f:
+                playlist_tracks = json.load(f)
+
+            # Extract unique albums
+            albums = {}
+            for entry in playlist_tracks:
+                artist_raw = entry.get('artist_name') or entry.get('artist') or ''
+                album_raw = entry.get('album_name') or entry.get('album') or ''
+                if not album_raw or not artist_raw:
+                    continue
+                primary_artist = clean_string(artist_raw.split(',')[0])
+                album = clean_string(album_raw)
+                key = (primary_artist.lower(), album.lower())
+                if key not in albums:
+                    albums[key] = {'artist': primary_artist, 'album': album, 'tracks': []}
+                albums[key]['tracks'].append(entry)
+
+            total_albums = len(albums)
+            socketio.emit('progress', {'message': f'Found {total_albums} unique albums. Scanning MusicBrainz...', 'progress': 10})
+
+            result = []
+            failed_matches = []
+
+            for idx, ((artist_key, album_key), info) in enumerate(albums.items()):
+                artist = info['artist']
+                album = info['album']
+                progress = 10 + int((idx / total_albums) * 80)
+                socketio.emit('progress', {'message': f'Scanning: {artist} - {album}', 'progress': progress})
+
+                mb_id = query_mb_releasegroup(artist, album)
+                if not mb_id and artist:
+                    mb_id = query_mb_releasegroup('', album)
+
+                if mb_id:
+                    result.append({"MusicBrainzId": mb_id, "artist": artist, "album": album})
+                else:
+                    failed_matches.append({"artist": artist, "album": album, "tracks": info['tracks']})
+
+                time.sleep(1.1)  # MusicBrainz rate limit
+
+            # Save results to OUTPUT_DIR
+            safe_name = playlist_name.replace(' ', '_')
+            mb_output_file = os.path.join(OUTPUT_DIR, f"{safe_name}_mb_albums.json")
+            failed_output_file = os.path.join(OUTPUT_DIR, f"{safe_name}_mb_failed.json")
+
+            with open(mb_output_file, 'w', encoding='utf-8') as f:
+                json.dump(result, f, indent=2, ensure_ascii=False)
+
+            with open(failed_output_file, 'w', encoding='utf-8') as f:
+                json.dump(failed_matches, f, indent=2, ensure_ascii=False)
+
+            socketio.emit('progress', {'message': 'MusicBrainz scan complete!', 'progress': 100})
+            # Build list of found album keys for frontend matching
+            found_albums = [{'artist': r['artist'].lower(), 'album': r['album'].lower()} for r in result]
+            socketio.emit('mb_scan_complete', {
+                'message': f'Found {len(result)} albums, {len(failed_matches)} failed',
+                'found': len(result),
+                'failed': len(failed_matches),
+                'mb_file': os.path.basename(mb_output_file),
+                'found_albums': found_albums
+            })
+
+        except Exception as e:
+            socketio.emit('error', {'message': f'Error scanning MusicBrainz: {str(e)}'})
+
+    thread = threading.Thread(target=scan_mb_task)
+    thread.start()
+
+    return jsonify({'message': 'MusicBrainz scan started'})
+
+
+@app.route('/api/send-to-lidarr', methods=['POST'])
+def send_to_lidarr():
+    """Send pre-scanned MusicBrainz albums to Lidarr"""
+    data = request.get_json()
+    mb_file = data.get('mb_file')
+
+    if not mb_file:
+        return jsonify({'error': 'No MusicBrainz file specified. Run Scan MB Albums first.'}), 400
+
+    mb_file_path = os.path.join(OUTPUT_DIR, mb_file)
+    if not os.path.exists(mb_file_path):
+        return jsonify({'error': f'MusicBrainz file not found: {mb_file}'}), 400
+
     def send_to_lidarr_task():
         try:
-            socketio.emit('progress', {'message': 'Processing tracks for Lidarr...', 'progress': 0})
-            
-            # Step 1: Process with MusicBrainz
-            socketio.emit('progress', {'message': 'Looking up albums in MusicBrainz...', 'progress': 20})
-            
-            # Temporarily modify the input file for process_spotify_mb
-            import process_spotify_mb
-            original_input = process_spotify_mb.INPUT_FILE
-            process_spotify_mb.INPUT_FILE = temp_file
-            
-            # Run MusicBrainz processing
-            socketio.emit('progress', {'message': 'Querying MusicBrainz database...', 'progress': 40})
-            
-            # This would need to be refactored to work with the web interface
-            # For now, we'll call it as a subprocess
+            socketio.emit('progress', {'message': 'Loading MusicBrainz albums...', 'progress': 0})
+
+            with open(mb_file_path, encoding='utf-8') as f:
+                mb_albums = json.load(f)
+
+            if not mb_albums:
+                socketio.emit('error', {'message': 'No albums found in MusicBrainz file'})
+                return
+
+            socketio.emit('progress', {'message': f'Adding {len(mb_albums)} albums to Lidarr...', 'progress': 20})
+
+            # Run the Lidarr sync script with the MB file
             result = subprocess.run([
-                'python', 'scripts/process_spotify_mb.py'
+                'python', 'scripts/mb_lidarr_sync.py', mb_file_path
             ], capture_output=True, text=True, cwd='.')
-            
-            if result.returncode != 0:
-                raise Exception(f"MusicBrainz processing failed: {result.stderr}")
-            
-            socketio.emit('progress', {'message': 'Adding albums to Lidarr...', 'progress': 70})
-            
-            # Step 2: Send to Lidarr
-            result = subprocess.run([
-                'python', 'scripts/mb_lidarr_sync.py'
-            ], capture_output=True, text=True, cwd='.')
-            
+
             if result.returncode != 0:
                 raise Exception(f"Lidarr sync failed: {result.stderr}")
-            
+
             socketio.emit('progress', {'message': 'Successfully sent to Lidarr!', 'progress': 100})
-            socketio.emit('lidarr_complete', {'message': 'Albums have been added to Lidarr'})
-            
+            socketio.emit('lidarr_complete', {'message': f'{len(mb_albums)} albums have been added to Lidarr'})
+
         except Exception as e:
             socketio.emit('error', {'message': f'Error sending to Lidarr: {str(e)}'})
-    
+
     thread = threading.Thread(target=send_to_lidarr_task)
     thread.start()
-    
+
     return jsonify({'message': 'Lidarr processing started'})
 
 @app.route('/api/test-lidarr', methods=['POST'])
