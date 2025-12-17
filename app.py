@@ -60,6 +60,9 @@ DATABASE_PATH = os.getenv('DATABASE_PATH', 'navidrome.db')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', '.')
 DATA_DIR = os.getenv('DATA_DIR', 'data')
 
+# Ensure output directory exists
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
 def get_spotify_oauth():
     return SpotifyOAuth(
         client_id=SPOTIFY_CLIENT_ID,
@@ -383,19 +386,30 @@ def generate_m3u():
     def generate_m3u_task():
         try:
             socketio.emit('progress', {'message': 'Generating M3U playlist...', 'progress': 0})
-            
-            # Use the existing script logic
-            output_file = f"{playlist_name.replace(' ', '_')}.m3u"
-            
+
+            # Check if database exists before proceeding
+            if not os.path.exists(DATABASE_PATH):
+                socketio.emit('error', {'message': f'Navidrome database not found at {DATABASE_PATH}. Please ensure your database is mounted correctly.'})
+                return
+
+            # Use the existing script logic - write to OUTPUT_DIR
+            output_file = os.path.join(OUTPUT_DIR, f"{playlist_name.replace(' ', '_')}.m3u")
+
             # Import and use the existing M3U generation function
             from spoti_playlist_to_m3u import generate_m3u_from_db
-            
+
             socketio.emit('progress', {'message': 'Processing tracks with Navidrome database...', 'progress': 50})
             generate_m3u_from_db(playlist_name, temp_file, output_file, test_mode=False)
-            
+
+            # Verify the file was actually created
+            if not os.path.exists(output_file):
+                socketio.emit('error', {'message': 'M3U file was not created. Check server logs for details.'})
+                return
+
             socketio.emit('progress', {'message': 'M3U playlist generated successfully!', 'progress': 100})
-            socketio.emit('m3u_generated', {'file_path': output_file})
-            
+            # Send just the filename, not the full path (download endpoint adds OUTPUT_DIR)
+            socketio.emit('m3u_generated', {'file_path': os.path.basename(output_file)})
+
         except Exception as e:
             socketio.emit('error', {'message': f'Error generating M3U: {str(e)}'})
     
@@ -590,7 +604,8 @@ def download_json():
 @app.route('/download/<filename>')
 def download_file(filename):
     try:
-        return send_file(filename, as_attachment=True)
+        file_path = os.path.join(OUTPUT_DIR, filename)
+        return send_file(file_path, as_attachment=True)
     except Exception as e:
         return jsonify({'error': str(e)}), 404
 
