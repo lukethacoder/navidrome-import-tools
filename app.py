@@ -61,8 +61,27 @@ DATABASE_PATH = os.getenv('DATABASE_PATH', 'navidrome.db')
 OUTPUT_DIR = os.getenv('OUTPUT_DIR', '.')
 DATA_DIR = os.getenv('DATA_DIR', 'data')
 
-# Ensure output directory exists
+# Settings file for runtime configuration
+SETTINGS_FILE = os.path.join(DATA_DIR, 'settings.json')
+
+# Ensure directories exist
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+os.makedirs(DATA_DIR, exist_ok=True)
+
+def load_settings():
+    """Load settings from JSON file"""
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, 'r') as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
+
+def save_settings(settings):
+    """Save settings to JSON file"""
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(settings, f, indent=2)
 
 def get_spotify_oauth():
     return SpotifyOAuth(
@@ -191,16 +210,49 @@ def liked_songs():
 
 @app.route('/settings')
 def settings():
+    saved_settings = load_settings()
+    lidarr_settings = saved_settings.get('lidarr', {})
     return render_template('settings.html',
                          authenticated=validate_session_security(),
                          spotify_client_id=SPOTIFY_CLIENT_ID or '',
                          redirect_uri=SPOTIFY_REDIRECT_URI,
-                         lidarr_url=os.getenv('LIDARR_URL', ''),
-                         lidarr_api_key=os.getenv('API_KEY', ''),
+                         lidarr_url=lidarr_settings.get('url', os.getenv('LIDARR_URL', '')),
+                         lidarr_api_key=lidarr_settings.get('api_key', os.getenv('API_KEY', '')),
                          database_path=DATABASE_PATH,
                          database_exists=os.path.exists(DATABASE_PATH),
                          output_dir=OUTPUT_DIR,
                          output_dir_exists=os.path.isdir(OUTPUT_DIR))
+
+@app.route('/api/settings')
+def get_settings():
+    """Get current settings"""
+    saved_settings = load_settings()
+    return jsonify({
+        'lidarr': saved_settings.get('lidarr', {
+            'url': os.getenv('LIDARR_URL', ''),
+            'api_key': os.getenv('API_KEY', ''),
+            'root_folder': '/music/',
+            'quality_profile_id': 1,
+            'metadata_profile_id': 1
+        })
+    })
+
+@app.route('/api/settings/lidarr', methods=['POST'])
+def save_lidarr_settings():
+    """Save Lidarr settings"""
+    data = request.get_json()
+
+    saved_settings = load_settings()
+    saved_settings['lidarr'] = {
+        'url': data.get('lidarr_url', ''),
+        'api_key': data.get('api_key', ''),
+        'root_folder': data.get('root_folder', '/music/'),
+        'quality_profile_id': data.get('quality_profile_id', 1),
+        'metadata_profile_id': data.get('metadata_profile_id', 1)
+    }
+    save_settings(saved_settings)
+
+    return jsonify({'success': True, 'message': 'Lidarr settings saved'})
 
 @app.route('/api/user-profile')
 def get_user_profile():
@@ -535,12 +587,21 @@ def send_to_lidarr():
                 socketio.emit('error', {'message': 'No albums found in MusicBrainz file'})
                 return
 
+            # Load saved settings
+            saved_settings = load_settings()
+            lidarr_settings = saved_settings.get('lidarr', {})
+
+            # Build environment with saved settings (fallback to env vars)
+            env = os.environ.copy()
+            env['LIDARR_URL'] = lidarr_settings.get('url') or os.getenv('LIDARR_URL', '')
+            env['API_KEY'] = lidarr_settings.get('api_key') or os.getenv('API_KEY', '')
+
             socketio.emit('progress', {'message': f'Adding {len(mb_albums)} albums to Lidarr...', 'progress': 20})
 
             # Run the Lidarr sync script with the MB file
             result = subprocess.run([
                 'python', 'scripts/mb_lidarr_sync.py', mb_file_path
-            ], capture_output=True, text=True, cwd='.')
+            ], capture_output=True, text=True, cwd='.', env=env)
 
             if result.returncode != 0:
                 # Extract error message from output
