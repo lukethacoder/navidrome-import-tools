@@ -6,6 +6,9 @@ class SpotifyMigrationApp {
         this.currentPlaylistName = null;
         this.currentPlaylistData = null;
         this.currentLikedSongsData = null;
+        this.foundAlbums = [];  // Albums found in MusicBrainz
+        this.currentPage = 1;
+        this.tracksPerPage = 50;
         this.init();
     }
 
@@ -179,13 +182,14 @@ class SpotifyMigrationApp {
         this.currentTempFile = data.temp_file;
         this.currentPlaylistName = data.playlist_name;
         this.currentPlaylistData = data.tracks;
+        this.foundAlbums = [];  // Reset MB status
+        this.currentPage = 1;
 
         // Show playlist results
         const resultsDiv = document.getElementById('playlist-results');
         const infoDiv = document.getElementById('playlist-info');
-        const trackList = document.getElementById('track-list');
 
-        if (resultsDiv && infoDiv && trackList) {
+        if (resultsDiv && infoDiv) {
             infoDiv.innerHTML = `
                 <div class="alert alert-success">
                     <h6><i class="fas fa-check-circle me-2"></i>Playlist Fetched Successfully!</h6>
@@ -193,21 +197,107 @@ class SpotifyMigrationApp {
                 </div>
             `;
 
-            // Populate track preview
-            trackList.innerHTML = '';
-            data.tracks.forEach(track => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${this.escapeHtml(track.track_name)}</td>
-                    <td>${this.escapeHtml(track.artist_name)}</td>
-                    <td>${this.escapeHtml(track.album_name)}</td>
-                `;
-                trackList.appendChild(row);
-            });
+            this.renderTrackPage();
+            this.bindPaginationEvents();
 
             resultsDiv.style.display = 'block';
             resultsDiv.scrollIntoView({ behavior: 'smooth' });
         }
+    }
+
+    // Render current page of tracks
+    renderTrackPage() {
+        const trackList = document.getElementById('track-list');
+        const countDisplay = document.getElementById('track-count-display');
+        const paginationInfo = document.getElementById('pagination-info');
+        const prevPage = document.getElementById('prev-page');
+        const nextPage = document.getElementById('next-page');
+
+        if (!trackList || !this.currentPlaylistData) return;
+
+        const totalTracks = this.currentPlaylistData.length;
+        const totalPages = Math.ceil(totalTracks / this.tracksPerPage);
+        const startIdx = (this.currentPage - 1) * this.tracksPerPage;
+        const endIdx = Math.min(startIdx + this.tracksPerPage, totalTracks);
+        const pageTracks = this.currentPlaylistData.slice(startIdx, endIdx);
+
+        // Update count display
+        if (countDisplay) {
+            countDisplay.textContent = totalTracks;
+        }
+
+        // Update pagination info
+        if (paginationInfo) {
+            paginationInfo.textContent = `Page ${this.currentPage} of ${totalPages}`;
+        }
+
+        // Update pagination buttons
+        if (prevPage) {
+            prevPage.classList.toggle('disabled', this.currentPage <= 1);
+        }
+        if (nextPage) {
+            nextPage.classList.toggle('disabled', this.currentPage >= totalPages);
+        }
+
+        // Render tracks
+        trackList.innerHTML = '';
+        pageTracks.forEach(track => {
+            const row = document.createElement('tr');
+            const mbStatus = this.isAlbumFound(track)
+                ? '<i class="fas fa-check text-success" title="Found in MusicBrainz"></i>'
+                : '<span class="text-muted">-</span>';
+            row.innerHTML = `
+                <td class="text-center">${mbStatus}</td>
+                <td>${this.escapeHtml(track.track_name)}</td>
+                <td>${this.escapeHtml(track.artist_name)}</td>
+                <td>${this.escapeHtml(track.album_name)}</td>
+            `;
+            trackList.appendChild(row);
+        });
+    }
+
+    // Check if a track's album was found in MusicBrainz
+    isAlbumFound(track) {
+        if (!this.foundAlbums.length) return false;
+        const artistName = (track.artist_name || '').split(',')[0].toLowerCase().trim();
+        const albumName = (track.album_name || '').toLowerCase().trim();
+        return this.foundAlbums.some(a =>
+            a.album === albumName ||
+            (a.artist === artistName && a.album === albumName)
+        );
+    }
+
+    // Bind pagination click events
+    bindPaginationEvents() {
+        const prevPage = document.getElementById('prev-page');
+        const nextPage = document.getElementById('next-page');
+
+        if (prevPage) {
+            prevPage.onclick = (e) => {
+                e.preventDefault();
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this.renderTrackPage();
+                }
+            };
+        }
+
+        if (nextPage) {
+            nextPage.onclick = (e) => {
+                e.preventDefault();
+                const totalPages = Math.ceil(this.currentPlaylistData.length / this.tracksPerPage);
+                if (this.currentPage < totalPages) {
+                    this.currentPage++;
+                    this.renderTrackPage();
+                }
+            };
+        }
+    }
+
+    // Update MB status after scan
+    updateMBStatus(foundAlbums) {
+        this.foundAlbums = foundAlbums || [];
+        this.renderTrackPage();  // Re-render to show checkmarks
     }
 
     // Liked songs handling

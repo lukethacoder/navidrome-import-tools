@@ -235,19 +235,56 @@ def second_pass_add_albums(groups, artist_map):
     print(f"✅ PASS 2 Complete: {success_count} added, {existing_count} existing, {fail_count} failed")
 
 
-def main():
+def test_lidarr_connection():
+    """Test if we can connect to Lidarr. Returns True if successful."""
+    if not LIDARR_URL:
+        print("ERROR: LIDARR_URL not configured")
+        return False
+    if not API_KEY:
+        print("ERROR: API_KEY not configured")
+        return False
+
     try:
-        with open(RELEASEGROUPS_FILE, encoding="utf-8") as f:
+        r = requests.get(f"{LIDARR_URL}/system/status", headers=HEADERS, timeout=10)
+        if r.status_code == 200:
+            return True
+        else:
+            print(f"ERROR: Lidarr returned status {r.status_code}")
+            return False
+    except requests.exceptions.ConnectionError:
+        print(f"ERROR: Cannot connect to Lidarr at {LIDARR_URL}")
+        return False
+    except requests.exceptions.Timeout:
+        print(f"ERROR: Connection to Lidarr timed out")
+        return False
+    except Exception as e:
+        print(f"ERROR: Failed to connect to Lidarr: {e}")
+        return False
+
+
+def main():
+    import sys
+
+    # Get input file from command line argument or use default
+    input_file = sys.argv[1] if len(sys.argv) > 1 else RELEASEGROUPS_FILE
+
+    # Check Lidarr connection first
+    if not test_lidarr_connection():
+        sys.exit(1)
+
+    print("Connected to Lidarr successfully")
+
+    try:
+        with open(input_file, encoding="utf-8") as f:
             groups = json.load(f)
     except Exception as e:
-        print(f"Failed to load {RELEASEGROUPS_FILE}: {e}")
-        return
+        print(f"Failed to load {input_file}: {e}")
+        sys.exit(1)
 
-    print(f"📚 Loaded {len(groups)} MusicBrainz Release Group IDs.")
-    
+    print(f"Loaded {len(groups)} MusicBrainz Release Group IDs.")
+
     test_groups = groups
-    print(f"🧪 Testing with first {len(test_groups)} albums")
-    
+
     artist_map = first_pass_add_artists(test_groups)
     second_pass_add_albums(test_groups, artist_map)
 

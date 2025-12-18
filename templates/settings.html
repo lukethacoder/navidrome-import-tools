@@ -125,28 +125,35 @@
                 </h5>
             </div>
             <div class="card-body">
-                <form id="navidrome-settings">
-                    <div class="mb-3">
-                        <label for="navidrome-db-path" class="form-label">Database Path</label>
-                        <input type="text" class="form-control" id="navidrome-db-path" 
-                               placeholder="navidrome.db" value="navidrome.db">
-                        <div class="form-text">Path to your Navidrome SQLite database file</div>
+                <div class="mb-3">
+                    <div class="alert {% if database_exists %}alert-success{% else %}alert-warning{% endif %} mb-0 py-2">
+                        <i class="fas {% if database_exists %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %} me-2"></i>
+                        <strong>Database Path:</strong> <code>{{ database_path }}</code>
+                        {% if database_exists %}
+                            <span class="badge bg-success ms-2">Found</span>
+                        {% else %}
+                            <span class="badge bg-danger ms-2">Not Found</span>
+                        {% endif %}
+                        <div class="small mt-1 text-muted">Configured via DATABASE_PATH environment variable</div>
                     </div>
-                    
-                    <div class="mb-3">
-                        <label for="music-path-prefix" class="form-label">Music Path Prefix</label>
-                        <input type="text" class="form-control" id="music-path-prefix" 
-                               placeholder="/music/" value="/music/">
-                        <div class="form-text">Prefix to add to file paths in M3U playlists</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="alert {% if output_dir_exists %}alert-success{% else %}alert-warning{% endif %} mb-0 py-2">
+                        <i class="fas {% if output_dir_exists %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %} me-2"></i>
+                        <strong>M3U Output Directory:</strong> <code>{{ output_dir }}</code>
+                        {% if output_dir_exists %}
+                            <span class="badge bg-success ms-2">Exists</span>
+                        {% else %}
+                            <span class="badge bg-danger ms-2">Not Found</span>
+                        {% endif %}
+                        <div class="small mt-1 text-muted">Configured via OUTPUT_DIR environment variable</div>
                     </div>
-                    
-                    <button type="button" class="btn btn-info" id="test-navidrome">
-                        <i class="fas fa-database me-1"></i>Test Database
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i>Save Settings
-                    </button>
-                </form>
+                </div>
+
+                <button type="button" class="btn btn-info" id="test-navidrome">
+                    <i class="fas fa-database me-1"></i>Test Database
+                </button>
             </div>
         </div>
     </div>
@@ -204,7 +211,11 @@
                 
                 <div class="mb-2">
                     <strong>Navidrome DB:</strong>
-                    <span class="badge bg-secondary" id="navidrome-status">Not Tested</span>
+                    {% if database_exists %}
+                        <span class="badge bg-success" id="navidrome-status">Found</span>
+                    {% else %}
+                        <span class="badge bg-danger" id="navidrome-status">Not Found</span>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -213,16 +224,23 @@
             <div class="card-header">
                 <h5 class="mb-0">
                     <i class="fas fa-file-code me-2"></i>
-                    Environment File
+                    Environment Variables
                 </h5>
             </div>
             <div class="card-body">
                 <p class="small">
-                    Your <code>.env</code> file should contain:
+                    Configure via <code>.env</code> file or environment variables:
                 </p>
-                <pre class="small bg-light p-2 rounded"><code>CLIENT_ID="your_spotify_client_id"
+                <pre class="small bg-light p-2 rounded"><code># Spotify (required)
+CLIENT_ID="your_spotify_client_id"
 CLIENT_SECRET="your_spotify_client_secret"
 REDIRECT_URI="http://localhost:5000/callback"
+
+# Navidrome (required for M3U)
+DATABASE_PATH="/path/to/navidrome.db"
+OUTPUT_DIR="/path/to/output"
+
+# Lidarr (optional)
 LIDARR_URL="http://localhost:8686/api/v1"
 API_KEY="your_lidarr_api_key"</code></pre>
             </div>

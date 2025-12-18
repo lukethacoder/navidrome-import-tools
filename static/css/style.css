@@ -166,6 +166,39 @@ body {
     border-bottom: none;
 }
 
+/* Track list container with scrolling */
+.track-list-container {
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+}
+
+.track-list-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.track-list-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.track-list-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.track-list-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.track-list-container .table {
+    margin-bottom: 0;
+}
+
+.track-list-container thead.sticky-top th {
+    background-color: #f8f9fa;
+    border-bottom: 2px solid #dee2e6;
+}
+
 /* Status indicators */
 .status-indicator {
     display: inline-block;
@@ -189,8 +222,13 @@ body {
 
 /* Custom scrollbar */
 .custom-scrollbar {
-    max-height: 400px;
+    max-height: 300px;
     overflow-y: auto;
+}
+
+/* Playlists page - Your Playlists fills remaining viewport */
+#user-playlists.custom-scrollbar {
+    height: calc(100vh - 540px);
 }
 
 .custom-scrollbar::-webkit-scrollbar {
