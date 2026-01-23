@@ -1,20 +1,21 @@
 import json
-import requests
-import time
 import os
+import time
+
+import requests
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
 # ====== CONFIGURATION ======
-LIDARR_URL = os.getenv('LIDARR_URL')  # Your Lidarr API base URL
-API_KEY = os.getenv('API_KEY')  # Your Lidarr API Key here
+LIDARR_URL = os.getenv("LIDARR_URL")  # Your Lidarr API base URL
+API_KEY = os.getenv("API_KEY")  # Your Lidarr API Key here
 RELEASEGROUPS_FILE = "lidarr_mb_releasegroups.json"
-ROOT_FOLDER_PATH = "/music/"  # Must match your Lidarr configured root folder
-METADATA_PROFILE_ID = 1       # Adjust to your metadata profile ID in Lidarr
-QUALITY_PROFILE_ID = 1        # Adjust to your quality profile ID in Lidarr
-REQUEST_DELAY = 1.1           # Seconds between API requests
+ROOT_FOLDER_PATH = os.getenv("ROOT_FOLDER_PATH", "/music/")
+METADATA_PROFILE_ID = int(os.getenv("METADATA_PROFILE_ID", 1))
+QUALITY_PROFILE_ID = int(os.getenv("QUALITY_PROFILE_ID", 1))
+REQUEST_DELAY = 1.1  # Seconds between API requests
 
 HEADERS = {"X-Api-Key": API_KEY}
 
@@ -63,19 +64,26 @@ def add_artist(artist_mb_id):
             return artist_data["id"]
         else:
             try:
-                lookup = requests.get(f"{LIDARR_URL}/artist/lookup", headers=HEADERS,
-                                      params={'term': "lidarr:" + str(artist_mb_id)})
+                lookup = requests.get(
+                    f"{LIDARR_URL}/artist/lookup",
+                    headers=HEADERS,
+                    params={"term": "lidarr:" + str(artist_mb_id)},
+                )
                 if lookup.status_code == 200:
                     artist_data = safe_get_first(lookup.json())
                     if artist_data:
-                        artist_data['metadataProfileId'] = METADATA_PROFILE_ID
-                        artist_data['qualityProfileId'] = QUALITY_PROFILE_ID
-                        artist_data['rootFolderPath'] = ROOT_FOLDER_PATH
+                        artist_data["metadataProfileId"] = METADATA_PROFILE_ID
+                        artist_data["qualityProfileId"] = QUALITY_PROFILE_ID
+                        artist_data["rootFolderPath"] = ROOT_FOLDER_PATH
 
-                        add = requests.post(f"{LIDARR_URL}/artist", headers=HEADERS, json=artist_data)
+                        add = requests.post(
+                            f"{LIDARR_URL}/artist", headers=HEADERS, json=artist_data
+                        )
                         if add.status_code in (200, 201):
                             artist_id = add.json().get("id")
-                            print(f"  ✓ Added artist: {artist_data.get('artistName', artist_mb_id)}")
+                            print(
+                                f"  ✓ Added artist: {artist_data.get('artistName', artist_mb_id)}"
+                            )
                             time.sleep(2)  # Wait for Lidarr to register artist fully
                             return artist_id
                         else:
@@ -101,7 +109,9 @@ def monitor_album_if_needed(album):
 
     album["monitored"] = True
     try:
-        resp = requests.put(f"{LIDARR_URL}/album/{album_id}", headers=HEADERS, json=album)
+        resp = requests.put(
+            f"{LIDARR_URL}/album/{album_id}", headers=HEADERS, json=album
+        )
         if resp.status_code in (200, 202):
             return True
         else:
@@ -115,7 +125,9 @@ def trigger_album_search(album_id, album_title):
         return
     command_json = {"name": "AlbumSearch", "albumIds": [album_id]}
     try:
-        resp = requests.post(f"{LIDARR_URL}/command", headers=HEADERS, json=command_json)
+        resp = requests.post(
+            f"{LIDARR_URL}/command", headers=HEADERS, json=command_json
+        )
         if resp.status_code in (200, 201):
             print(f"  → Search triggered for '{album_title}'")
         else:
@@ -146,28 +158,28 @@ def first_pass_add_artists(groups):
         mb_id = entry.get("MusicBrainzId")
         if not mb_id:
             continue
-        
+
         print(f"  Processing artist {i + 1}/{len(groups)}: {mb_id}")
         album_info = get_album_by_releasegroup(mb_id)
         album_info = safe_get_first(album_info)
         if not album_info:
             print(f"  ✗ Lookup failed for album {mb_id}")
             continue
-        
+
         artist_mb_id = extract_artist_mb_id(album_info)
         if not artist_mb_id:
             print(f"  ✗ No artist MBID found for album {mb_id}")
             continue
-            
+
         if artist_mb_id in processed_artist_mbids:
             print(f"  ⚬ Artist already processed: {artist_mb_id}")
             continue
-            
+
         artist_id = add_artist(artist_mb_id)
         if artist_id:
             artist_map[artist_mb_id] = artist_id
         processed_artist_mbids.add(artist_mb_id)
-        
+
     print(f"✅ PASS 1 Complete: {len(artist_map)} artists added/found")
     return artist_map
 
@@ -177,12 +189,12 @@ def second_pass_add_albums(groups, artist_map):
     success_count = 0
     fail_count = 0
     existing_count = 0
-    
+
     for i, entry in enumerate(groups):
         mb_id = entry.get("MusicBrainzId")
         if not mb_id:
             continue
-            
+
         print(f"Processing album {i + 1}/{len(groups)}: {mb_id}")
         album_info = get_album_by_releasegroup(mb_id)
         album_info = safe_get_first(album_info)
@@ -190,13 +202,13 @@ def second_pass_add_albums(groups, artist_map):
             print(f"  ✗ Lookup failed for album {mb_id}")
             fail_count += 1
             continue
-            
+
         artist_mb_id = extract_artist_mb_id(album_info)
         if not artist_mb_id or artist_mb_id not in artist_map:
             print(f"  ✗ Artist MBID missing in artist map for album {mb_id}")
             fail_count += 1
             continue
-            
+
         artist_id = artist_map[artist_mb_id]
 
         # Check if album already exists
@@ -211,19 +223,21 @@ def second_pass_add_albums(groups, artist_map):
 
         # Prepare album info to add
         album_body = album_info
-        album_body['artistId'] = artist_id
-        album_body['metadataProfileId'] = METADATA_PROFILE_ID
-        album_body['qualityProfileId'] = QUALITY_PROFILE_ID
-        album_body['monitored'] = True
-        album_body['addOptions'] = {"searchForMissingAlbums": True}
+        album_body["artistId"] = artist_id
+        album_body["metadataProfileId"] = METADATA_PROFILE_ID
+        album_body["qualityProfileId"] = QUALITY_PROFILE_ID
+        album_body["monitored"] = True
+        album_body["addOptions"] = {"searchForMissingAlbums": True}
 
         try:
-            add_resp = requests.post(f"{LIDARR_URL}/album", headers=HEADERS, json=album_body)
+            add_resp = requests.post(
+                f"{LIDARR_URL}/album", headers=HEADERS, json=album_body
+            )
             if add_resp.status_code in (200, 201):
                 album_id = add_resp.json().get("id")
                 print(f"  ✓ Added: {album_info.get('title')}")
                 success_count += 1
-                trigger_album_search(album_id, album_info.get('title'))
+                trigger_album_search(album_id, album_info.get("title"))
             else:
                 print(f"  ✗ Add failed for {mb_id}")
                 fail_count += 1
@@ -231,8 +245,10 @@ def second_pass_add_albums(groups, artist_map):
             print(f"  ✗ Exception adding album {mb_id}")
             fail_count += 1
         time.sleep(REQUEST_DELAY)
-    
-    print(f"✅ PASS 2 Complete: {success_count} added, {existing_count} existing, {fail_count} failed")
+
+    print(
+        f"✅ PASS 2 Complete: {success_count} added, {existing_count} existing, {fail_count} failed"
+    )
 
 
 def test_lidarr_connection():
