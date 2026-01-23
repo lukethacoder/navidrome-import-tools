@@ -126,8 +126,10 @@ If you prefer to run without Docker:
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
 2. Create a new app
-3. Add `http://localhost:8888/callback` to Redirect URIs
+3. Add your redirect URI (see below)
 4. Copy Client ID and Client Secret to your `.env` file
+
+> **Important:** Spotify requires HTTPS for redirect URIs, with an exception for loopback addresses (`localhost` / `127.0.0.1`). If you're accessing the app locally, use `http://localhost:8888/callback` or `http://127.0.0.1:8888/callback`. If you're accessing it over your network (e.g. `http://192.168.x.x:8888/callback`), you'll need to set up HTTPS or use a reverse proxy with a valid SSL certificate.
 
 ## How It Works
 
