@@ -158,6 +158,122 @@ Configure the application via the Settings page:
 - **Lidarr Settings**: API URL, API key, quality profile, and root folder
 - **Performance**: Toggle in-memory database mode on/off (in-memory mode provides ~10x speed improvement)
 
+## CLI Usage
+
+The scripts in `scripts/` can be run directly using parameters.
+
+### Environment Setup
+
+Copy and configure the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` with your credentials. See `.env.example` for all available variables.
+
+### Typical Workflow
+
+```bash
+# 1. Fetch Spotify playlist or liked songs
+python scripts/fetch_spotify_playlist.py
+python scripts/fetch_spotify_liked.py
+
+# 2. Generate M3U playlist from fetched data
+python scripts/spoti_playlist_to_m3u.py generate "My Playlist" output/playlist_tracks.json my_playlist.m3u
+
+# 3. Scan MusicBrainz for album IDs (needed for Lidarr)
+python scripts/process_spotify_mb.py
+
+# 4. Send albums to Lidarr
+python scripts/mb_lidarr_sync.py output/lidarr_mb_releasegroups.json
+```
+
+### Script Reference
+
+#### `fetch_spotify_playlist.py`
+
+Fetches all tracks from a Spotify playlist and exports them as JSON and CSV.
+
+```bash
+python scripts/fetch_spotify_playlist.py
+```
+
+**Requires:** `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`
+
+**Outputs:** `playlist_tracks.json`, `playlist_tracks.csv`
+
+**Note:** The playlist ID is currently configured within the script (`PLAYLIST_ID` variable). Edit this before running.
+
+#### `fetch_spotify_liked.py`
+
+Fetches all of a user's liked/saved songs from Spotify.
+
+```bash
+python scripts/fetch_spotify_liked.py
+```
+
+**Requires:** `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`
+
+**Outputs:** `liked_tracks.json`, `liked_tracks.csv`
+
+#### `spoti_playlist_to_m3u.py`
+
+Converts Spotify playlist JSON into M3U playlists by matching tracks against your Navidrome database.
+
+```bash
+# List sample songs from your Navidrome database
+python scripts/spoti_playlist_to_m3u.py list
+
+# Generate an M3U playlist (in-memory mode, faster)
+python scripts/spoti_playlist_to_m3u.py generate "Playlist Name" playlist_tracks.json output.m3u
+
+# Generate with direct database queries (lower memory usage)
+python scripts/spoti_playlist_to_m3u.py generate "Playlist Name" playlist_tracks.json output.m3u --no-memory
+```
+
+**Requires:** `DATABASE_PATH`, `OUTPUT_DIR`
+
+**Outputs:** `{name}.m3u` playlist file, `{name}_failed_matches.json` for unmatched tracks
+
+#### `process_spotify_mb.py`
+
+Scans Spotify tracks and looks up their albums on MusicBrainz to get release group IDs (needed for Lidarr import).
+
+```bash
+python scripts/process_spotify_mb.py
+```
+
+**Configuration:** `INPUT_FILE`, `OUTPUT_FILE`, `FAILED_MATCHES_FILE`, and `MAX_ALBUMS` are configured within the script.
+
+**Outputs:** `lidarr_mb_releasegroups.json`, `failed_matches.json`
+
+**Note:** Respects MusicBrainz rate limits (1 request/second). Large libraries may take a while.
+
+#### `mb_lidarr_sync.py`
+
+Adds albums to Lidarr from a MusicBrainz release groups file. Performs two passes: first adding artists, then adding and searching for albums.
+
+```bash
+python scripts/mb_lidarr_sync.py lidarr_mb_releasegroups.json
+```
+
+**Requires:** `LIDARR_URL`, `API_KEY`, `ROOT_FOLDER_PATH`, `QUALITY_PROFILE_ID`, `METADATA_PROFILE_ID`
+
+**Note:** Tests Lidarr connectivity before processing. Skips albums already in Lidarr.
+
+#### `spotify_liked_chopper.py`
+
+Splits your liked songs into multiple Spotify playlists of 500 tracks each (useful for Spotify's playlist size limitations).
+
+```bash
+python scripts/spotify_liked_chopper.py
+```
+
+**Requires:** `CLIENT_ID`, `CLIENT_SECRET`, `REDIRECT_URI`
+
+**Creates playlists:** "All My Liked Songs 1", "All My Liked Songs 2", etc.
+
 ## Project Structure
 
 ```
